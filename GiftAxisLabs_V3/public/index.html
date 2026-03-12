@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gift Axis Labs™ Control</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { background: #000; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .box { border: 1px solid #0f0; padding: 20px; border-radius: 10px; text-align: center; max-width: 400px; }
+        h1 { margin: 0 0 20px 0; text-shadow: 0 0 10px #0f0; }
+        img { max-width: 100%; display: none; margin: 10px auto; }
+        #logs { margin-top: 20px; color: #888; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>𝐆𝐈𝐅𝐓-𝐀𝐗𝐈𝐒 𝐌𝐃</h1>
+        <p id="status">🔴 Initializing...</p>
+        <img id="qr" src="" alt="QR Code">
+        <div id="logs">Waiting for server...</div>
+    </div>
+    <script>
+        const socket = io();
+        const qr = document.getElementById('qr');
+        const status = document.getElementById('status');
+        const logs = document.getElementById('logs');
+
+        socket.on('qr', (url) => {
+            qr.src = url;
+            qr.style.display = 'block';
+            status.innerText = '🟡 Scan QR Code';
+        });
+
+        socket.on('status', (s) => {
+            status.innerText = s;
+            if(s.includes('Online')) qr.style.display = 'none';
+        });
+
+        socket.on('log', (msg) => {
+            logs.innerText = '> ' + msg;
+        });
+    </script>
+</body>
+</html>

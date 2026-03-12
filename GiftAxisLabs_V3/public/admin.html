@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gift Axis Labs™ — Admin Panel</title>
+<script src="/socket.io/socket.io.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060810;
+  --surface: #0c1020;
+  --surface2: #131829;
+  --surface3: #1a2138;
+  --border: #1e2a45;
+  --accent: #f97316;
+  --accent2: #fb923c;
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #eab308;
+  --text: #e2e8f0;
+  --muted: #475569;
+  --font: 'Space Grotesk', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+/* ── Login Screen ── */
+#loginScreen {
+  position: fixed; inset: 0; background: var(--bg); z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background-image: radial-gradient(ellipse 80% 60% at 50% -20%, #f9731615, transparent);
+}
+.login-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 48px 40px; width: 380px; max-width: 90vw;
+  box-shadow: 0 0 60px #f9731608;
+}
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo .icon { font-size: 2.5rem; display: block; margin-bottom: 10px; }
+.login-logo h1 { font-size: 1.3rem; font-weight: 700; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.login-logo p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; display: block; margin-bottom: 8px; }
+.form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 12px 14px; border-radius: 10px; font-family: var(--font); font-size: 14px; outline: none; transition: border-color .2s; }
+.form-input:focus { border-color: var(--accent); }
+.login-btn { width: 100%; padding: 13px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border: none; border-radius: 10px; font-family: var(--font); font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity .2s, transform .1s; margin-top: 8px; }
+.login-btn:hover { opacity: .9; }
+.login-btn:active { transform: scale(.98); }
+.login-error { color: var(--red); font-size: 12px; text-align: center; margin-top: 10px; min-height: 18px; }
+.login-hint { color: var(--muted); font-size: 11px; text-align: center; margin-top: 16px; }
+
+/* ── Main App ── */
+#app { display: none; }
+.sidebar {
+  width: 240px; background: var(--surface); border-right: 1px solid var(--border);
+  height: 100vh; position: fixed; left: 0; top: 0; display: flex; flex-direction: column;
+  z-index: 40;
+}
+.sidebar-logo { padding: 20px; border-bottom: 1px solid var(--border); }
+.sidebar-logo .name { font-size: 1rem; font-weight: 700; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.sidebar-logo .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.sidebar-menu { padding: 16px 12px; flex: 1; overflow-y: auto; }
+.menu-section { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; padding: 8px 8px 6px; }
+.menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--muted); transition: all .15s; margin-bottom: 2px; }
+.menu-item:hover { background: var(--surface2); color: var(--text); }
+.menu-item.active { background: linear-gradient(135deg, #f9731618, #fb923c10); color: var(--accent); border: 1px solid #f9731620; }
+.menu-item .icon { width: 18px; text-align: center; }
+.sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
+.user-chip { display: flex; align-items: center; gap: 10px; }
+.user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; }
+.user-info .name { font-size: 13px; font-weight: 600; }
+.user-info .role { font-size: 11px; color: var(--muted); }
+.logout-btn { margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; transition: color .2s; }
+.logout-btn:hover { color: var(--red); }
+
+/* ── Main Content ── */
+.main { margin-left: 240px; min-height: 100vh; }
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 58px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 30; }
+.topbar-title { font-size: 1rem; font-weight: 600; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.status-pill { display: flex; align-items: center; gap: 6px; background: var(--surface2); padding: 5px 12px; border-radius: 20px; font-size: 12px; border: 1px solid var(--border); }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.red { background: var(--red); }
+.dot.yellow { background: var(--yellow); animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.content { padding: 28px 28px; }
+
+/* ── Stats grid ── */
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.stat-num { font-size: 2rem; font-weight: 700; font-family: var(--mono); }
+.stat-num.orange { color: var(--accent); }
+.stat-num.blue { color: var(--blue); }
+.stat-num.green { color: var(--green); }
+.stat-num.yellow { color: var(--yellow); }
+.stat-lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* ── Cards ── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+@media(max-width:900px) { .grid2 { grid-template-columns: 1fr; } .sidebar { transform: translateX(-100%); } .main { margin-left: 0; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-head { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 16px; }
+.card-head span { color: var(--text); }
+
+/* ── Table ── */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface2); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.tag.on { background: #22c55e18; color: var(--green); border: 1px solid #22c55e22; }
+.tag.off { background: #ef444418; color: var(--red); border: 1px solid #ef444422; }
+.tag.admin { background: #f9731618; color: var(--accent); border: 1px solid #f9731622; }
+
+/* ── Forms / Controls ── */
+.ctrl-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+input, select, textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-family: var(--font); font-size: 13px; outline: none; transition: border-color .2s; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+.btn { padding: 9px 18px; border-radius: 8px; border: none; font-family: var(--font); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+.btn-primary:hover { opacity: .85; }
+.btn-danger { background: #ef444420; color: var(--red); border: 1px solid #ef444430; }
+.btn-danger:hover { background: #ef444430; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-green { background: #22c55e20; color: var(--green); border: 1px solid #22c55e30; }
+.btn-green:hover { background: #22c55e30; }
+
+/* ── Terminal ── */
+.terminal { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-family: var(--mono); font-size: 12px; height: 200px; overflow-y: auto; color: #86efac; }
+.terminal .line { margin-bottom: 2px; }
+.terminal .line.err { color: var(--red); }
+.terminal .line.warn { color: var(--yellow); }
+.terminal .line.info { color: var(--blue); }
+
+/* ── Alert / Toast ── */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); padding: 12px 20px; border-radius: 10px; font-size: 13px; transform: translateY(80px); opacity: 0; transition: all .3s; z-index: 200; max-width: 320px; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error { border-color: var(--red); color: var(--red); }
+
+/* ── Tab pages ── */
+.page { display: none; }
+.page.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="icon">🔐</span>
+      <h1>Gift Axis Labs™</h1>
+      <p>Admin Control Panel</p>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="form-input" id="loginUser" type="text" placeholder="admin" value="admin" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" id="loginPass" type="password" placeholder="Enter admin password">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-error" id="loginErr"></div>
+    <div class="login-hint">Password is set in <code>config.js → adminPassword</code></div>
+  </div>
+</div>
+
+<!-- ══ APP ════════════════════════════════════════════════════════════════════ -->
+<div id="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="name">⚡ Gift Axis Labs™</div>
+      <div class="sub">Admin Console</div>
+    </div>
+    <div class="sidebar-menu">
+      <div class="menu-section">Overview</div>
+      <div class="menu-item active" onclick="showPage('overview')"><span class="icon">📊</span> Dashboard</div>
+      <div class="menu-item" onclick="showPage('logs')"><span class="icon">📋</span> Live Logs</div>
+
+      <div class="menu-section">Bot Control</div>
+      <div class="menu-item" onclick="showPage('sessions')"><span class="icon">📱</span> Sessions</div>
+      <div class="menu-item" onclick="showPage('broadcast')"><span class="icon">📢</span> Broadcast</div>
+      <div class="menu-item" onclick="showPage('commands')"><span class="icon">⌨️</span> Commands</div>
+
+      <div class="menu-section">Management</div>
+      <div class="menu-item" onclick="showPage('groups')"><span class="icon">👥</span> Groups</div>
+      <div class="menu-item" onclick="showPage('economy')"><span class="icon">💰</span> Economy</div>
+      <div class="menu-item" onclick="showPage('learning')"><span class="icon">📚</span> Learning</div>
+
+      <div class="menu-section">System</div>
+      <div class="menu-item" onclick="showPage('config')"><span class="icon">⚙️</span> Config</div>
+      <div class="menu-item" onclick="showPage('files')"><span class="icon">📁</span> Generated Files</div>
+      <div class="menu-item" onclick="showPage('ngrok')"><span class="icon">🌍</span> Ngrok</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar">A</div>
+        <div class="user-info"><div class="name" id="sidebarUser">Admin</div><div class="role">Owner</div></div>
+        <button class="logout-btn" onclick="logout()" title="Logout">⏏</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-right">
+        <div class="status-pill"><div class="dot yellow" id="topDot"></div><span id="topStatus">Connecting...</span></div>
+        <div class="status-pill" style="cursor:pointer" onclick="copyNgrok()" title="Click to copy ngrok URL">🌍 <span id="topNgrok">--</span></div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── OVERVIEW ── -->
+      <div class="page active" id="page-overview">
+        <div class="stats">
+          <div class="stat"><div class="stat-num orange" id="oSessions">-</div><div class="stat-lbl">📱 Sessions</div></div>
+          <div class="stat"><div class="stat-num blue" id="oCmds">-</div><div class="stat-lbl">⌨️ Commands</div></div>
+          <div class="stat"><div class="stat-num green" id="oMsgs">-</div><div class="stat-lbl">💬 Messages</div></div>
+          <div class="stat"><div class="stat-num yellow" id="oUptime">-</div><div class="stat-lbl">⏱ Uptime</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head"><span>🟢 Bot Status</span></div>
+            <div id="botStatusList">Loading...</div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span>⚡ Quick Actions</span></div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <button class="btn btn-secondary" onclick="adminAction('restart')">🔄 Restart Bot</button>
+              <button class="btn btn-secondary" onclick="adminAction('clearSessions')">🗑 Clear All Sessions</button>
+              <button class="btn btn-secondary" onclick="adminAction('reloadCommands')">🔃 Reload Commands</button>
+              <button class="btn btn-green" onclick="adminAction('testNgrok')">🌍 Test Ngrok Tunnel</button>
+              <button class="btn btn-danger" onclick="adminAction('shutdown')">⛔ Shutdown Bot</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span>📋 Recent Logs</span></div>
+          <div class="terminal" id="overviewTerminal"></div>
+        </div>
+      </div>
+
+      <!-- ── LIVE LOGS ── -->
+      <div class="page" id="page-logs">
+        <div class="card">
+          <div class="card-head"><span>📋 Live Console Logs</span></div>
+          <div class="ctrl-row">
+            <button class="btn btn-secondary" onclick="clearLogs()">🗑 Clear</button>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="autoScroll" checked> Auto-scroll
+            </label>
+            <select id="logFilter" onchange="filterLogs()" style="font-size:12px">
+              <option value="all">All</option>
+              <option value="info">Info</option>
+              <option value="warn">Warnings</option>
+              <option value="error">Errors</option>
+            </select>
+          </div>
+          <div class="terminal" id="logTerminal" style="height:500px"></div>
+        </div>
+      </div>
+
+      <!-- ── SESSIONS ── -->
+      <div class="page" id="page-sessions">
+        <div class="card">
+          <div class="card-head"><span>📱 Active Sessions</span></div>
+          <div class="ctrl-row">
+            <input type="text" id="sessionSearch" placeholder="Search phone..." oninput="filterSessions()">
+            <button class="btn btn-danger" onclick="adminAction('clearSessions')">🗑 Clear All</button>
+          </div>
+          <table>
+            <thead><tr><th>Phone</th><th>Source</th><th>Paired At</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="sessionsTable"><tr><td colspan="5" style="color:var(--muted)">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── BROADCAST ── -->
+      <div class="page" id="page-broadcast">
+        <div class="card" style="max-width:600px">
+          <div class="card-head"><span>📢 Broadcast Message</span></div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Send a message to all active WhatsApp chats or all learning groups.</p>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label" style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">Target</label>
+            <select id="broadcastTarget" style="width:100%">
+              <option value="all">All Chats</option>
+              <option value="groups">All Groups</option>
+              <option value="learning">Learning Groups Only</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label" style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">Message</label>
+            <textarea id="broadcastMsg" rows="5" style="width:100%;resize:vertical" placeholder="Enter your broadcast message..."></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="sendBroadcast()">📢 Send Broadcast</button>
+          <div id="broadcastResult" style="margin-top:12px;font-size:13px;color:var(--muted)"></div>
+        </div>
+      </div>
+
+      <!-- ── COMMANDS ── -->
+      <div class="page" id="page-commands">
+        <div class="card">
+          <div class="card-head"><span>⌨️ All Commands <span id="cmdCount" style="color:var(--accent)"></span></span></div>
+          <div class="ctrl-row">
+            <input type="text" id="adminCmdSearch" placeholder="Search..." oninput="filterAdminCmds()" style="flex:1">
+            <select id="cmdCatFilter" onchange="filterAdminCmds()">
+              <option value="">All Categories</option>
+              <option value="games">games</option>
+              <option value="ai">ai</option>
+              <option value="dev">dev</option>
+              <option value="fun">fun</option>
+              <option value="group">group</option>
+              <option value="learning">learning</option>
+              <option value="tools">tools</option>
+              <option value="media">media</option>
+              <option value="productivity">productivity</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <table>
+            <thead><tr><th>Command</th><th>Aliases</th><th>Category</th><th>Description</th><th>Flags</th></tr></thead>
+            <tbody id="adminCmdTable"><tr><td colspan="5" style="color:var(--muted)">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── GROUPS ── -->
+      <div class="page" id="page-groups">
+        <div class="card">
+          <div class="card-head"><span>👥 WhatsApp Groups</span></div>
+          <table>
+            <thead><tr><th>Group ID</th><th>Members</th><th>AI Mode</th><th>Slow Mode</th><th>Anti-flood</th></tr></thead>
+            <tbody id="groupsTable"><tr><td colspan="5" style="color:var(--muted)">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── ECONOMY ── -->
+      <div class="page" id="page-economy">
+        <div class="grid2">
+          <div class="card">
+            <div class="card-head"><span>💰 Top Balances</span></div>
+            <table>
+              <thead><tr><th>User</th><th>Wallet</th><th>Bank</th><th>XP</th><th>Action</th></tr></thead>
+              <tbody id="econTable"><tr><td colspan="5" style="color:var(--muted)">Loading...</td></tr></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-head"><span>💸 Economy Controls</span></div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Give Money to User</label>
+                <div class="ctrl-row">
+                  <input type="text" id="econUser" placeholder="Phone (e.g. 2348...)" style="flex:1">
+                  <input type="number" id="econAmount" placeholder="Amount" style="width:100px">
+                  <button class="btn btn-green" onclick="econGive()">Give</button>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Reset User Economy</label>
+                <div class="ctrl-row">
+                  <input type="text" id="econResetUser" placeholder="Phone number" style="flex:1">
+                  <button class="btn btn-danger" onclick="econReset()">Reset</button>
+                </div>
+              </div>
+              <button class="btn btn-danger" onclick="if(confirm('Reset ALL economy data?')) adminAction('resetEconomy')">⚠️ Reset All Economy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── LEARNING ── -->
+      <div class="page" id="page-learning">
+        <div class="card">
+          <div class="card-head"><span>📚 Learning Groups</span></div>
+          <table>
+            <thead><tr><th>Group</th><th>Topic</th><th>Language</th><th>Students</th><th>Labs Done</th><th>AI Mode</th></tr></thead>
+            <tbody id="learningTable"><tr><td colspan="6" style="color:var(--muted)">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── CONFIG ── -->
+      <div class="page" id="page-config">
+        <div class="card" style="max-width:700px">
+          <div class="card-head"><span>⚙️ Runtime Config</span></div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:16px">These changes apply at runtime. Edit <code>config.js</code> for permanent changes.</p>
+          <table>
+            <thead><tr><th>Setting</th><th>Value</th><th>Action</th></tr></thead>
+            <tbody id="configTable">
+              <tr><td>Auto Read</td><td><span id="cfgAutoRead">-</span></td><td><button class="btn btn-secondary" onclick="toggleCfg('autoRead')">Toggle</button></td></tr>
+              <tr><td>Auto Status</td><td><span id="cfgAutoStatus">-</span></td><td><button class="btn btn-secondary" onclick="toggleCfg('autoStatus')">Toggle</button></td></tr>
+              <tr><td>Open Pairing</td><td><span id="cfgOpenPairing">-</span></td><td><button class="btn btn-secondary" onclick="toggleCfg('openPairing')">Toggle</button></td></tr>
+              <tr><td>Ngrok Enabled</td><td><span id="cfgNgrok">-</span></td><td><button class="btn btn-secondary" onclick="toggleCfg('ngrokEnabled')">Toggle</button></td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top:20px">
+            <div class="card-head">🔑 Change Admin Password</div>
+            <div class="ctrl-row">
+              <input type="password" id="newPassInput" placeholder="New password" style="flex:1">
+              <button class="btn btn-primary" onclick="changePass()">Update</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FILES ── -->
+      <div class="page" id="page-files">
+        <div class="card">
+          <div class="card-head"><span>📁 Generated Files (auto-deletes after 24h)</span></div>
+          <div class="ctrl-row">
+            <button class="btn btn-danger" onclick="adminAction('cleanFiles')">🗑 Delete All Generated Files</button>
+            <button class="btn btn-secondary" onclick="socket.emit('getFiles')">🔄 Refresh</button>
+          </div>
+          <table>
+            <thead><tr><th>Filename</th><th>Size</th><th>Created</th><th>Action</th></tr></thead>
+            <tbody id="filesTable"><tr><td colspan="4" style="color:var(--muted)">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── NGROK ── -->
+      <div class="page" id="page-ngrok">
+        <div class="card" style="max-width:600px">
+          <div class="card-head"><span>🌍 Ngrok Tunnel</span></div>
+          <div id="ngrokStatus" style="margin-bottom:20px;font-size:14px">Loading...</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-green" onclick="adminAction('startNgrok')">▶ Start Tunnel</button>
+            <button class="btn btn-danger" onclick="adminAction('stopNgrok')">⏹ Stop Tunnel</button>
+            <button class="btn btn-secondary" onclick="socket.emit('getNgrok')">🔄 Refresh Status</button>
+          </div>
+          <div style="margin-top:20px">
+            <div class="card-head">Quick Links</div>
+            <div id="ngrokLinks" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const socket = io();
+let sessionToken = null;
+let allCmds = [], allSessions = [];
+
+// ── AUTH ─────────────────────────────────────────────────────────────────────
+function doLogin() {
+  const user = document.getElementById("loginUser").value;
+  const pass = document.getElementById("loginPass").value;
+  document.getElementById("loginErr").textContent = "";
+  socket.emit("adminLogin", { user, pass });
+}
+document.getElementById("loginPass").addEventListener("keypress", e => { if(e.key==="Enter") doLogin(); });
+
+socket.on("adminLoginResult", res => {
+  if (res.success) {
+    sessionToken = res.token;
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    document.getElementById("sidebarUser").textContent = res.user || "Admin";
+    socket.emit("getAdminDashboard", { token: sessionToken });
+    socket.emit("getAdminLogs", { token: sessionToken });
+  } else {
+    document.getElementById("loginErr").textContent = "❌ " + (res.error || "Invalid credentials");
+  }
+});
+
+function logout() {
+  sessionToken = null;
+  document.getElementById("loginScreen").style.display = "flex";
+  document.getElementById("app").style.display = "none";
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+const pageTitles = { overview:"Dashboard", logs:"Live Logs", sessions:"Sessions", broadcast:"Broadcast", commands:"Commands", groups:"Groups", economy:"Economy", learning:"Learning Groups", config:"Config", files:"Generated Files", ngrok:"Ngrok Tunnel" };
+function showPage(id) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".menu-item").forEach(m => m.classList.remove("active"));
+  document.getElementById("page-"+id).classList.add("active");
+  event.currentTarget.classList.add("active");
+  document.getElementById("pageTitle").textContent = pageTitles[id] || id;
+  if (id==="sessions") socket.emit("getAdminSessions", { token: sessionToken });
+  if (id==="economy") socket.emit("getEconomy", { token: sessionToken });
+  if (id==="groups") socket.emit("getGroups", { token: sessionToken });
+  if (id==="learning") socket.emit("getLearning", { token: sessionToken });
+  if (id==="commands") socket.emit("getAdminCommands", { token: sessionToken });
+  if (id==="files") socket.emit("getFiles", { token: sessionToken });
+  if (id==="ngrok") socket.emit("getNgrok", { token: sessionToken });
+  if (id==="config") socket.emit("getConfig", { token: sessionToken });
+}
+
+// ── SOCKET DATA ───────────────────────────────────────────────────────────────
+socket.on("status", s => {
+  const dot = document.getElementById("topDot");
+  document.getElementById("topStatus").textContent = s;
+  dot.className = "dot " + (s.toLowerCase().includes("online")?"green":s.toLowerCase().includes("connect")?"yellow":"red");
+});
+
+socket.on("adminDashboard", d => {
+  document.getElementById("oSessions").textContent = d.sessions||0;
+  document.getElementById("oCmds").textContent = d.commands||0;
+  document.getElementById("oMsgs").textContent = (d.messages||0).toLocaleString();
+  document.getElementById("oUptime").textContent = fmtUptime(d.uptime||0);
+  document.getElementById("topNgrok").textContent = d.ngrokUrl ? d.ngrokUrl.replace("https://","") : "Off";
+  document.getElementById("botStatusList").innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+      <div>🤖 Bot: <strong style="color:var(--green)">${d.connected?"Online ✓":"Offline ✗"}</strong></div>
+      <div>🌍 Ngrok: <strong style="color:${d.ngrokUrl?"var(--green)":"var(--red)"}"> ${d.ngrokUrl||"Offline"}</strong></div>
+      <div>📱 Sessions: <strong>${d.sessions||0} / ${d.maxSessions||100}</strong></div>
+      <div>⏱ Uptime: <strong>${fmtUptime(d.uptime||0)}</strong></div>
+      <div>🤖 Platform: <strong>${d.platform||"Linux"}</strong></div>
+      <div>💾 RAM: <strong>${d.memUsed||"?"}MB / ${d.memTotal||"?"}MB</strong></div>
+    </div>`;
+  allCmds = d.commandList || [];
+  renderAdminCmds(allCmds);
+  document.getElementById("cmdCount").textContent = "("+allCmds.length+")";
+});
+
+socket.on("adminSessions", sessions => {
+  allSessions = sessions;
+  renderSessions(sessions);
+});
+
+socket.on("adminLogs", logs => {
+  const el = document.getElementById("logTerminal");
+  const ov = document.getElementById("overviewTerminal");
+  el.innerHTML = ""; ov.innerHTML = "";
+  (logs || []).forEach(l => { addLog(l, false); });
+});
+
+socket.on("adminLog", line => addLog(line, true));
+
+socket.on("economy", data => {
+  const tbody = document.getElementById("econTable");
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No economy data.</td></tr>'; return; }
+  tbody.innerHTML = data.map(u => `
+    <tr>
+      <td style="font-family:var(--mono);font-size:12px">+${u.id.split("@")[0]}</td>
+      <td style="color:var(--green)">$${(u.balance||0).toLocaleString()}</td>
+      <td style="color:var(--blue)">$${(u.bank||0).toLocaleString()}</td>
+      <td style="color:var(--yellow)">⭐${u.xp||0}</td>
+      <td><button class="btn btn-danger" onclick="econReset('${u.id}')" style="padding:4px 10px;font-size:11px">Reset</button></td>
+    </tr>`).join("");
+});
+
+socket.on("groups", groups => {
+  const tbody = document.getElementById("groupsTable");
+  tbody.innerHTML = groups.map(g => `
+    <tr>
+      <td style="font-family:var(--mono);font-size:11px">${g.id.split("@")[0].slice(-8)}...</td>
+      <td>${g.members||"?"}</td>
+      <td><span class="tag ${g.aiMode==="auto"?"on":"off"}">${g.aiMode||"off"}</span></td>
+      <td><span class="tag ${g.slowMode?"on":"off"}">${g.slowMode ? (g.slowMode/1000)+"s" : "off"}</span></td>
+      <td><span class="tag ${g.antiFlood?"on":"off"}">${g.antiFlood?"on":"off"}</span></td>
+    </tr>`).join("") || '<tr><td colspan="5" style="color:var(--muted)">No groups tracked.</td></tr>';
+});
+
+socket.on("learning", groups => {
+  const tbody = document.getElementById("learningTable");
+  tbody.innerHTML = groups.map(g => `
+    <tr>
+      <td style="font-size:12px">${g.id.split("@")[0].slice(-8)}...</td>
+      <td>${g.topic||"-"}</td>
+      <td><span class="tag on">${g.language||"-"}</span></td>
+      <td>${g.students||0}</td>
+      <td>${g.labsDone||0}</td>
+      <td><span class="tag ${g.aiMode==="auto"?"on":g.aiMode==="suggest"?"admin":"off"}">${g.aiMode||"off"}</span></td>
+    </tr>`).join("") || '<tr><td colspan="6" style="color:var(--muted)">No learning groups.</td></tr>';
+});
+
+socket.on("adminCommands", cmds => {
+  allCmds = cmds;
+  document.getElementById("cmdCount").textContent = "("+cmds.length+")";
+  renderAdminCmds(cmds);
+});
+
+socket.on("files", files => {
+  const tbody = document.getElementById("filesTable");
+  if (!files.length) { tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No generated files.</td></tr>'; return; }
+  tbody.innerHTML = files.map(f => `
+    <tr>
+      <td style="font-family:var(--mono);font-size:12px">${f.name}</td>
+      <td>${f.size}</td>
+      <td style="font-size:11px;color:var(--muted)">${new Date(f.mtime).toLocaleString()}</td>
+      <td>
+        <a href="${f.url}" target="_blank" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;text-decoration:none">Open</a>
+      </td>
+    </tr>`).join("");
+});
+
+socket.on("ngrokData", data => {
+  document.getElementById("ngrokStatus").innerHTML = data.running
+    ? `<div style="color:var(--green)">🟢 <strong>Active</strong><br><a href="${data.url}" target="_blank" style="color:var(--accent)">${data.url}</a></div>`
+    : `<div style="color:var(--red)">🔴 <strong>Not running</strong><br><span style="font-size:12px;color:var(--muted)">Add ngrokAuthToken to config.js then start</span></div>`;
+  const links = document.getElementById("ngrokLinks");
+  if (data.url) {
+    links.innerHTML = ["/dashboard","/admin","/pair","/generated"].map(p =>
+      `<a href="${data.url+p}" target="_blank" style="color:var(--accent);font-size:13px;font-family:var(--mono)">${data.url+p}</a>`
+    ).join("");
+  }
+});
+
+socket.on("configData", cfg => {
+  ["autoRead","autoStatus","openPairing","ngrokEnabled"].forEach(k => {
+    const el = document.getElementById("cfg"+k.charAt(0).toUpperCase()+k.slice(1));
+    if (el) { el.textContent = cfg[k] ? "✅ On" : "❌ Off"; el.style.color = cfg[k] ? "var(--green)" : "var(--red)"; }
+  });
+});
+
+socket.on("adminAction", res => showToast(res.success ? "✅ "+res.message : "❌ "+res.error, res.success?"success":"error"));
+
+// ── RENDERS ───────────────────────────────────────────────────────────────────
+function renderSessions(sessions) {
+  const tbody = document.getElementById("sessionsTable");
+  if (!sessions.length) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No active sessions.</td></tr>'; return; }
+  tbody.innerHTML = sessions.map(s => `
+    <tr>
+      <td style="font-family:var(--mono);font-size:13px">+${s.phone||"?"}</td>
+      <td><span class="tag admin">${s.source||"web"}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${s.pairedAt ? new Date(s.pairedAt).toLocaleDateString() : "-"}</td>
+      <td><span class="tag on">Active</span></td>
+      <td><button class="btn btn-danger" onclick="removeSession('${s.id}')" style="padding:4px 10px;font-size:11px">Remove</button></td>
+    </tr>`).join("");
+}
+
+function renderAdminCmds(cmds) {
+  const tbody = document.getElementById("adminCmdTable");
+  tbody.innerHTML = cmds.map(c => `
+    <tr>
+      <td style="font-family:var(--mono);color:var(--accent)">.${c.name}</td>
+      <td style="font-size:12px;color:var(--muted)">${(c.alias||[]).map(a=>"."+a).join(", ")||"-"}</td>
+      <td><span class="tag on">${c.category||"general"}</span></td>
+      <td style="font-size:12px">${c.description||c.desc||"-"}</td>
+      <td style="font-size:11px">${c.adminOnly?"🔒 Admin ":""} ${c.ownerOnly?"👑 Owner ":""} ${c.groupOnly?"👥 Group":""}</td>
+    </tr>`).join("") || '<tr><td colspan="5" style="color:var(--muted)">Loading...</td></tr>';
+}
+
+function filterAdminCmds() {
+  const q = document.getElementById("adminCmdSearch").value.toLowerCase();
+  const cat = document.getElementById("cmdCatFilter").value;
+  renderAdminCmds(allCmds.filter(c =>
+    (!q || c.name.includes(q) || (c.description||"").toLowerCase().includes(q)) &&
+    (!cat || (c.category||"")==cat)
+  ));
+}
+function filterSessions() {
+  const q = document.getElementById("sessionSearch").value;
+  renderSessions(q ? allSessions.filter(s => (s.phone||"").includes(q)) : allSessions);
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+function adminAction(action) {
+  if (["shutdown","clearSessions","resetEconomy","cleanFiles"].includes(action)) {
+    if (!confirm("Are you sure you want to: " + action + "?")) return;
+  }
+  socket.emit("adminAction", { token: sessionToken, action });
+}
+function sendBroadcast() {
+  const msg = document.getElementById("broadcastMsg").value.trim();
+  const target = document.getElementById("broadcastTarget").value;
+  if (!msg) return showToast("❌ Enter a message", "error");
+  socket.emit("adminAction", { token: sessionToken, action: "broadcast", payload: { msg, target } });
+  document.getElementById("broadcastResult").textContent = "📢 Broadcast sent!";
+  setTimeout(() => document.getElementById("broadcastResult").textContent = "", 3000);
+}
+function toggleCfg(key) { socket.emit("adminAction", { token: sessionToken, action: "toggleConfig", payload: { key } }); }
+function changePass() {
+  const p = document.getElementById("newPassInput").value;
+  if (!p || p.length < 4) return showToast("❌ Too short", "error");
+  socket.emit("adminAction", { token: sessionToken, action: "changePassword", payload: { password: p } });
+  document.getElementById("newPassInput").value = "";
+}
+function econGive() {
+  const user = document.getElementById("econUser").value.replace(/[^0-9]/g,"");
+  const amount = parseInt(document.getElementById("econAmount").value);
+  if (!user || !amount) return showToast("❌ Fill in both fields", "error");
+  socket.emit("adminAction", { token: sessionToken, action: "econGive", payload: { user, amount } });
+}
+function econReset(id) {
+  const user = id || document.getElementById("econResetUser").value.replace(/[^0-9]/g,"");
+  if (!user) return showToast("❌ Enter phone number", "error");
+  if (!confirm("Reset economy for " + user + "?")) return;
+  socket.emit("adminAction", { token: sessionToken, action: "econReset", payload: { user } });
+}
+function removeSession(id) {
+  socket.emit("adminAction", { token: sessionToken, action: "removeSession", payload: { id } });
+}
+function copyNgrok() {
+  const txt = document.getElementById("topNgrok").textContent;
+  navigator.clipboard.writeText("https://"+txt).then(() => showToast("✅ URL copied!","success"));
+}
+
+// ── LOGS ──────────────────────────────────────────────────────────────────────
+const logLines = [];
+function addLog(line, live) {
+  logLines.push(line);
+  if (logLines.length > 500) logLines.shift();
+  const el = document.getElementById("logTerminal");
+  const ov = document.getElementById("overviewTerminal");
+  const cls = line.toLowerCase().includes("error")?"err":line.toLowerCase().includes("warn")?"warn":line.toLowerCase().includes("✅")||line.toLowerCase().includes("online")?"info":"";
+  const div = `<div class="line ${cls}">${esc(line)}</div>`;
+  el.innerHTML += div;
+  ov.innerHTML += div;
+  // Keep overview short
+  if (ov.children.length > 15) ov.removeChild(ov.firstChild);
+  if (document.getElementById("autoScroll")?.checked) el.scrollTop = el.scrollHeight;
+}
+function clearLogs() { document.getElementById("logTerminal").innerHTML = ""; logLines.length = 0; }
+function filterLogs() {
+  const f = document.getElementById("logFilter").value;
+  document.querySelectorAll("#logTerminal .line").forEach(el => {
+    el.style.display = f==="all" || (f==="error"&&el.classList.contains("err")) || (f==="warn"&&el.classList.contains("warn")) || (f==="info"&&el.classList.contains("info")) ? "" : "none";
+  });
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function fmtUptime(s) { const h=Math.floor(s/3600),m=Math.floor((s%3600)/60); return h+"h "+m+"m"; }
+function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function showToast(msg, type="success") {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = "toast " + type + " show";
+  setTimeout(() => t.classList.remove("show"), 3500);
+}
+</script>
+</body>
+</html>
