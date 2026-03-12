@@ -930,7 +930,6 @@ async function startGiftAxis() {
             }
         }
     }
-    }
 
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     const { version } = await fetchLatestBaileysVersion();
