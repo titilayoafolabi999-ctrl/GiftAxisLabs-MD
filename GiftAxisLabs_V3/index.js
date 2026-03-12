@@ -72,9 +72,16 @@ let sock = null;
 // only after makeWASocket is created and NOT after connection is already open.
 // ─────────────────────────────────────────────────────────────────────────────
 async function requestPairing(chatId, phoneNumber, source = "telegram") {
+    // Wait up to 15 seconds for sock to be ready
+    let waited = 0;
+    while (!sock && waited < 15000) {
+        await new Promise(r => setTimeout(r, 500));
+        waited += 500;
+    }
+
     if (!sock) {
         const msg = `┌ ❏ ◆ ⌜⏳ 𝗪𝗔𝗜𝗧𝗜𝗡𝗚⌟ ◆\n│\n├◆ ʙᴏᴛ ɪs sᴛᴀʀᴛɪɴɢ ᴜᴘ...\n├◆ ᴘʟᴇᴀsᴇ ᴛʀʏ /pair ᴀɢᴀɪɴ ɪɴ 5s\n│\n└ ❏`;
-        if (source === "telegram") tgBot.sendMessage(chatId, msg);
+        if (source === "telegram" && chatId) tgBot.sendMessage(chatId, msg);
         return { success: false, error: "Socket not ready" };
     }
 
@@ -917,6 +924,9 @@ async function startGiftAxis() {
         auth: state,
         browser: ["Gift Axis Labs", "Chrome", "3.0.0"],
         syncFullHistory: false,
+        printQRInTerminal: false,
+        markOnlineOnConnect: false,
+        generateHighQualityLinkPreview: false,
         getMessage: async (key) => {
             const msg = await store.loadMessage(key.remoteJid, key.id);
             return msg?.message || undefined;
@@ -945,7 +955,7 @@ async function startGiftAxis() {
             console.log(`[Bot ${BOT_INDEX}] ${reasonName}. Reconnecting in 5s...`);
             io.emit("log", `${reasonName}. Reconnecting...`);
             io.emit("status", "🔴 Offline");
-            sock = null;
+            // Don't null sock immediately — keep reference until new socket created
 
             if (reason === DisconnectReason.loggedOut) {
                 try {
