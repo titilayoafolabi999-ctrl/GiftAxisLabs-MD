@@ -232,7 +232,7 @@ tgBot.onText(/\/pair/, (msg) => {
 });
 
 // /mystatus — user checks their own pairing status
-tgBot.onText(//mystatus/, (msg) => {
+tgBot.onText(/\/mystatus/, (msg) => {
     const chatId = msg.chat.id;
     const session = database.db.sessions[`tg_${chatId}_bot${BOT_INDEX}`];
     if (session && session.active) {
@@ -251,7 +251,7 @@ tgBot.onText(//mystatus/, (msg) => {
 });
 
 // /myunpair — user removes their own session only
-tgBot.onText(//myunpair/, (msg) => {
+tgBot.onText(/\/myunpair/, (msg) => {
     const chatId = msg.chat.id;
     const sessionKey = `tg_${chatId}_bot${BOT_INDEX}`;
     const session = database.db.sessions[sessionKey];
