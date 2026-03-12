@@ -6,7 +6,7 @@ module.exports = {
         const url = args[0];
         if (!url) return reply("Usage: .video <youtube url>");
         if (!url.includes("youtu")) return reply("❌ Please provide a valid YouTube URL");
-        const videoId = url.match(/(?:v=|youtu.be/)([\w-]{11})/)?.[1];
+        const videoId = url.match(/(?:v=|youtu\.be\/)([\w-]{11})/)?.[1];
         if (!videoId) return reply("❌ Invalid YouTube URL");
         try {
             const infoRes = await axios.get(`https://www.youtube.com/oembed?url=https://youtu.be/${videoId}&format=json`, { timeout: 5000 });
