@@ -915,6 +915,23 @@ async function startGiftAxis() {
         console.log(`[Bot ${BOT_INDEX}] Session directory created: ${SESSION_DIR}`);
     }
 
+    // ── Restore session from SESSION_ID env var (for Render/Railway/Heroku) ──
+    const SESSION_ID = process.env.SESSION_ID;
+    if (SESSION_ID) {
+        const credsPath = path.join(SESSION_DIR, "creds.json");
+        if (!fs.existsSync(credsPath)) {
+            try {
+                // SESSION_ID is base64-encoded creds.json content
+                const decoded = Buffer.from(SESSION_ID, "base64").toString("utf-8");
+                fs.writeFileSync(credsPath, decoded);
+                console.log(`✅ [Bot ${BOT_INDEX}] Session restored from SESSION_ID env var`);
+            } catch(e) {
+                console.error(`❌ [Bot ${BOT_INDEX}] Failed to restore session: ${e.message}`);
+            }
+        }
+    }
+    }
+
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     const { version } = await fetchLatestBaileysVersion();
 
@@ -1362,7 +1379,7 @@ async function startGiftAxis() {
 loadCommands(path.join(__dirname, "commands"));
 console.log(`📦 [Bot ${BOT_INDEX}] Loaded ${commands.size} commands.`);
 
-server.listen(PORT, async () => {
+server.listen(PORT, "0.0.0.0", async () => {
     console.log(`🌐 [Bot ${BOT_INDEX}] Dashboard running on port ${PORT}`);
 
     // ── Start Ngrok tunnel ────────────────────────────────────────────────────
